@@ -2,13 +2,12 @@ from __future__ import with_statement
 import pytest
 import time
 
-import redis
 import redis_namespace
 from redis.exceptions import ConnectionError
 from redis._compat import basestring, u, unichr, b
 
 from .conftest import r as _redis_client
-from .conftest import skip_if_server_version_lt
+from .conftest import skip_if_server_version_lt, NS
 
 
 def wait_for_message(pubsub, timeout=0.1, ignore_subscribe_messages=False):
@@ -144,6 +143,7 @@ class TestPubSubSubscribeUnsubscribe(object):
         assert wait_for_message(p) == make_message(unsub_type, keys[0], 0)
         # now we're no longer subscribed as no more messages can be delivered
         # to any channels we were listening to
+        wait_for_message(p)
         assert p.subscribed is False
 
         # subscribing again flips the flag back
@@ -396,7 +396,7 @@ class TestPubSubAutoDecoding(object):
 class TestPubSubRedisDown(object):
 
     def test_channel_subscribe(self, r):
-        r = redis_namespace.Redis(host='localhost', port=6390)
+        r = redis_namespace.Redis(host='localhost', port=6390, namespace=NS)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
             p.subscribe('foo')

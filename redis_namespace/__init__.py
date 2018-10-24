@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import unicode_literals
+
 import redis
 from redis.client import Token, BasePipeline as _BasePipeline, PubSub as _PubSub
 from redis.connection import ConnectionPool
+from redis._compat import nativestr
 
 
 NAMESPACED_COMMANDS = {
     "append": ['first'],
     "bitcount": ['first'],
     "bitop": ['exclude_first'],
+    "bitpos": ['first'],
     "blpop": ['exclude_last', 'first'],
     "brpop": ['exclude_last', 'first'],
     "brpoplpush": ['exclude_last'],
-    "debug": ['exclude_first'],
+    # "debug": ['exclude_first'],
     "decr": ['first'],
     "decrby": ['first'],
     "del": ['all'],
@@ -22,9 +26,16 @@ NAMESPACED_COMMANDS = {
     "expireat": ['first'],
     "eval": ['eval_style'],
     "evalsha": ['eval_style'],
+    "geoadd": ['first'],
+    "geohash": ['first'],
+    "geopos": ['first'],
+    "geodist": ['first'],
+    "georadius": [None],
+    "georadiusbymember": [None],
     "get": ['first'],
     "getbit": ['first'],
     "getrange": ['first'],
+    "substr": ['first'],
     "getset": ['first'],
     "hset": ['first'],
     "hsetnx": ['first'],
@@ -39,6 +50,7 @@ NAMESPACED_COMMANDS = {
     "hkeys": ['first'],
     "hscan": ['first'],
     "hscan_each": ['first'],
+    "hstrlen": ['first'],
     "hvals": ['first'],
     "hgetall": ['first'],
     "incr": ['first'],
@@ -75,6 +87,8 @@ NAMESPACED_COMMANDS = {
     "psetex": ['first'],
     "psubscribe": ['all'],
     "pttl": ['first'],
+    "pubsub channels": [None, 'all'],
+    "pubsub numsub": ['all', 'all'],
     "publish": ['first'],
     "punsubscribe": ['all'],
     "rename": ['all'],
@@ -119,13 +133,17 @@ NAMESPACED_COMMANDS = {
     "zcount": ['first'],
     "zincrby": ['first'],
     "zinterstore": ['exclude_options'],
+    "zlexcount": ['first'],
     "zrange": ['first'],
+    "zrangebylex": ['first'],
     "zrangebyscore": ['first'],
     "zrank": ['first'],
     "zrem": ['first'],
     "zremrangebyrank": ['first'],
+    "zremrangebylex": ['first'],
     "zremrangebyscore": ['first'],
     "zrevrange": ['first'],
+    "zrevrangebylex": ['first'],
     "zrevrangebyscore": ['first'],
     "zrevrank": ['first'],
     "zscan": ['first'],
@@ -200,7 +218,9 @@ def args_with_namespace(ns, *original_args):
     elif before == 'exclude_last':
         args[:-1] = add_namespace(ns, args[:-1])
     elif before == 'exclude_options':
-        pass
+        args[0] = add_namespace(ns, args[0])
+        numkeys = args[1]
+        args[2:2 + numkeys] = add_namespace(ns, args[2:2 + numkeys])
     elif before == 'alternate':
         new_args = []
         for i, k in enumerate(args):
@@ -244,7 +264,7 @@ def response_rm_namespace(ns, command_name, response):
 
 
 def add_namespace(ns, key):
-    if not ns:
+    if not ns or not key:
         return key
     if isinstance(key, list):
         return [add_namespace(ns, k) for k in key]
@@ -300,6 +320,36 @@ class StrictRedis(redis.StrictRedis):
     def pubsub(self, **kwargs):
         return PubSub(self.connection_pool, namespace=self._namespace, **kwargs)
 
+    def sort(self, name, start=None, num=None, by=None, get=None,
+             desc=False, alpha=False, store=None, groups=False):
+        args = [name, by, store]
+        name, by, store = add_namespace(self._namespace, args)
+        if get:
+            if isinstance(get, basestring):
+                get = add_namespace(self._namespace, get)
+            elif isinstance(get, (list, tuple)):
+                get = [add_namespace(self._namespace, i) if i != '#' else i for i in get]
+        return super(StrictRedis, self).sort(
+            name, start, num, by, get, desc, alpha, store, groups)
+
+    def georadius(self, name, longitude, latitude, radius, unit=None,
+                  withdist=False, withcoord=False, withhash=False, count=None,
+                  sort=None, store=None, store_dist=None):
+        args = [name, store, store_dist]
+        name, store, store_dist = add_namespace(self._namespace, args)
+        return super(StrictRedis, self).georadius(
+            name, longitude, latitude, radius, unit, withdist, withcoord, withhash, count,
+            sort, store, store_dist)
+
+    def georadiusbymember(self, name, member, radius, unit=None,
+                          withdist=False, withcoord=False, withhash=False,
+                          count=None, sort=None, store=None, store_dist=None):
+        args = [name, store, store_dist]
+        name, store, store_dist = add_namespace(self._namespace, args)
+        return super(StrictRedis, self).georadiusbymember(
+            name, member, radius, unit, withdist, withcoord, withhash,
+            count, sort, store, store_dist)
+
 
 class Redis(redis.Redis, StrictRedis):
 
@@ -322,6 +372,15 @@ class PubSub(_PubSub):
     def execute_command(self, *args, **kwargs):
         args = args_with_namespace(self._namespace, *args)
         return super(PubSub, self).execute_command(*args, **kwargs)
+
+    def handle_message(self, response, ignore_subscribe_messages=False):
+        message_type = nativestr(response[0])
+        if message_type == 'pmessage':
+            response[1] = rm_namespace(self._namespace, response[1])  # pattern
+            response[2] = rm_namespace(self._namespace, response[2])  # channel
+        else:
+            response[1] = rm_namespace(self._namespace, response[1])  # channel
+        return super(PubSub, self).handle_message(response, ignore_subscribe_messages)
 
 
 class BasePipeline(_BasePipeline):
