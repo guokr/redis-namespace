@@ -5,7 +5,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='redis_namespace',
-    version='0.0.1',
+    version='0.0.2',
     description='redis namespace',
     url='http://git.fenda.io/usher/redis-namespace',
     install_requires=requirements,
