@@ -19,6 +19,8 @@ deploy:
   user: zrq495
   password:
     secure: g88NTx5h02a5qIKdyAxmzPrZ6QNOQZ58gFFZRo4WRcJ11eA0FdgkZ0MMJNflwfiqUduz+3vCdIhOSGZL4fq3P5ZTfg8Ei659H9NHW0Y788dw0geg/JSSnt/4FopaoRZQ8VVg4Q7JyNwbj9soS7xVcQlgTDkZrRHQx5WZ/cJqCHUnzf3BTA9NkOPm034ww5+rIRjSGQMqe78VIjI55dq8EJYCknlORtDZsTTMYrUBtcBbMea0jEjbSPX6YkH1p+S3efvVLNXJpnLgbhVStpZSIY4w8JaKncIm0EZnp+xQZoRbTah8NdCwDk3Ek0VJVl+vnosuFFNUaSObFHyBld56A/StRxs20dU3As5q+TVKH9jqAkJnMv0+D/A6ZJ06Tz95D9XrdSI0bgwe8i1aVMEZ4c3lPHRAOEYPoKxwqLD5yGXhrvKVhHkYhN91IJhRxJgBVcRyYbzUqfbQDT74etNUWiS3Oba1xxW4mRi923f/YMTAQzjaWEFh42SCVc8E40Jk6wwauQyeH/RdYhF0No7Y1l5nlHEJ+c8oTrZBoy1YDbnVihxKstW/Zv2gtFeUFDlHA0twLhtSlFnoY9uMo+vBPpWv3gn0gnkvbzTXJ09jP6c2pAzlMrHqSNCzSY85porH8kX3KnxDnH1TDIohpcZGuDO84hPb9h9sixiecqPgqLE=
+  skip_existing: true
+  distributions: "sdist bdist_wheel"
   on:
     pythoni: 2.7
     tags: true
