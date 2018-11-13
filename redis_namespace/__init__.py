@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import redis
 from redis.client import Token, BasePipeline as _BasePipeline, PubSub as _PubSub
 from redis.connection import ConnectionPool
-from redis._compat import nativestr
+from redis._compat import nativestr, basestring, bytes
 
 
 NAMESPACED_COMMANDS = {
@@ -238,7 +238,7 @@ def args_with_namespace(ns, *original_args):
     elif before == 'scan_style':
         is_custom_match = False
         for i, a in enumerate(args):
-            if isinstance(a, (basestring, Token)) and str(a).lower() == 'match':
+            if isinstance(a, (basestring, bytes, Token)) and str(a).lower() == 'match':
                 args[i+1] = add_namespace(ns, args[i + 1])
                 is_custom_match = True
                 break
@@ -272,6 +272,8 @@ def add_namespace(ns, key):
         return {add_namespace(ns, k): v for k, v in key.items()}
     elif isinstance(key, basestring):
         return '{}{}'.format(ns, key)
+    elif isinstance(key, bytes):
+        return '{}{}'.format(ns, nativestr(key))
     return key
 
 
@@ -282,7 +284,7 @@ def rm_namespace(ns, key):
         return [rm_namespace(ns, k) for k in key]
     elif isinstance(key, dict):
         return {rm_namespace(ns, k): v for k, v in key.items()}
-    elif isinstance(key, basestring):
+    elif isinstance(key, (basestring, bytes)):
         return key[len(ns):]
     return key
 
@@ -325,7 +327,7 @@ class StrictRedis(redis.StrictRedis):
         args = [name, by, store]
         name, by, store = add_namespace(self._namespace, args)
         if get:
-            if isinstance(get, basestring):
+            if isinstance(get, (basestring, bytes)):
                 get = add_namespace(self._namespace, get)
             elif isinstance(get, (list, tuple)):
                 get = [add_namespace(self._namespace, i) if i != '#' else i for i in get]
