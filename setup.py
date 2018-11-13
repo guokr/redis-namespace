@@ -19,6 +19,10 @@ setup(
     license='MIT',
     install_requires=requirements,
     packages=find_packages(exclude=['tests']),
+    tests_require=[
+        'mock',
+        'pytest',
+    ],
     classifiers=[
         "Programming Language :: Python :: 2",
         "License :: OSI Approved :: MIT License",
