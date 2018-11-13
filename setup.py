@@ -1,4 +1,3 @@
-import os
 from setuptools import setup, find_packages
 
 with open('requirements.txt') as f:
@@ -9,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='redis_namespace',
-    version='0.0.3',
+    version='0.0.4',
     description='redis namespace',
     long_description=long_description,
     long_description_content_type="text/markdown",
