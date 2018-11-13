@@ -1,8 +1,8 @@
 ## redis-namespace
 
-Inspired by [Ruby redis-namespace](https://github.com/resque/redis-namespace)
+[redis-namespace](https://github.com/resque/redis-namespace) for python
 
-Redis::Namespace provides an interface to a namespaced subset of your [redis][] keyspace (e.g., keys with a common beginning), and requires the [redis-py][].
+Redis::Namespace provides an interface to a namespaced subset of your [redis][https://redis.io] keyspace (e.g., keys with a common beginning), and requires the [redis-py][https://github.com/andymccurdy/redis-py].
 
 ```python
 import redis
@@ -23,4 +23,4 @@ redis_connection.get('ns:foo')
 
 ### Installation
 
-`pip install -U redis-namespace -i http://pypi.iguokr.com/guokr/dev/+simple --trusted-host pypi.iguokr.com`
+`pip install redis-namespace`
