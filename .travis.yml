@@ -22,6 +22,5 @@ deploy:
   skip_existing: true
   distributions: "sdist bdist_wheel"
   on:
-    pythoni: 2.7
     tags: true
     branch: master
