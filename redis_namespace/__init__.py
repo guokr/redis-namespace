@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from redis import __version__ as redis_version
 from ._version import __version__ as current_version
 
-if not current_version.startswith(redis_version):
+if not redis_version.startswith('.'.join(current_version.split('.')[:-1])):
     raise Exception('Version mismatch! redis version: %s, redis-namespace version: %s' % (redis_version, current_version))
 
 import redis

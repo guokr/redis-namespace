@@ -4,7 +4,7 @@
 
 [redis-namespace](https://github.com/resque/redis-namespace) for python
 
-Redis::Namespace provides an interface to a namespaced subset of your [redis](https://redis.io) keyspace (e.g., keys with a common beginning), and requires the [redis-py](https://github.com/andymccurdy/redis-py).
+Redis namespace provides an interface to a namespaced subset of your [redis](https://redis.io) keyspace (e.g., keys with a common beginning), and requires the [redis-py](https://github.com/andymccurdy/redis-py).
 
 ```python
 import redis

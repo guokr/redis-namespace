@@ -17,7 +17,7 @@ with open("README.md", "r") as fh:
 setup(
     name='redis_namespace',
     version=version,
-    description='redis namespace',
+    description='namespaced subset of your redis keyspace',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/guokr/redis-namespace',
