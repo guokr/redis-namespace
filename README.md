@@ -28,6 +28,18 @@ redis_connection.get('ns:foo')
 `pip install redis-namespace`
 
 
+**Warning: The redis-py's version must match redis-namespace's**
+
+Supported list
+
+| redis-py  | redis-namespace |
+| --- | --- |
+| 3.0.1 | 3.0.1.1 |
+| 2.10.6 | 2.10.6.1 |
+| 2.10.5 | 2.10.5.2 |
+| 2.10.3 | 2.10.3.1 |
+
+
 [travis-url]: https://travis-ci.org/guokr/redis-namespace
 [travis-image]: https://travis-ci.org/guokr/redis-namespace.svg
 
