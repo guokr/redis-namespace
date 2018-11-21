@@ -1,12 +1,13 @@
-from __future__ import with_statement
+from __future__ import unicode_literals
 import pytest
 import time
 
-import redis_namespace
+import redis
 from redis.exceptions import ConnectionError
-from redis._compat import basestring, u, unichr, b
+from redis._compat import basestring, unichr
+import redis_namespace
 
-from .conftest import r as _redis_client
+from .conftest import _get_client
 from .conftest import skip_if_server_version_lt, NS
 
 
@@ -27,7 +28,7 @@ def make_message(type, channel, data, pattern=None):
     return {
         'type': type,
         'pattern': pattern and pattern.encode('utf-8') or None,
-        'channel': channel.encode('utf-8'),
+        'channel': channel and channel.encode('utf-8') or None,
         'data': data.encode('utf-8') if isinstance(data, basestring) else data
     }
 
@@ -40,7 +41,7 @@ def make_subscribe_test_data(pubsub, type):
             'unsub_type': 'unsubscribe',
             'sub_func': pubsub.subscribe,
             'unsub_func': pubsub.unsubscribe,
-            'keys': ['foo', 'bar', u('uni') + unichr(4456) + u('code')]
+            'keys': ['foo', 'bar', 'uni' + unichr(4456) + 'code']
         }
     elif type == 'pattern':
         return {
@@ -49,7 +50,7 @@ def make_subscribe_test_data(pubsub, type):
             'unsub_type': 'punsubscribe',
             'sub_func': pubsub.psubscribe,
             'unsub_func': pubsub.punsubscribe,
-            'keys': ['f*', 'b*', u('uni') + unichr(4456) + u('*')]
+            'keys': ['f*', 'b*', 'uni' + unichr(4456) + '*']
         }
     assert False, 'invalid subscribe type: %s' % type
 
@@ -143,7 +144,6 @@ class TestPubSubSubscribeUnsubscribe(object):
         assert wait_for_message(p) == make_message(unsub_type, keys[0], 0)
         # now we're no longer subscribed as no more messages can be delivered
         # to any channels we were listening to
-        wait_for_message(p)
         assert p.subscribed is False
 
         # subscribing again flips the flag back
@@ -268,7 +268,7 @@ class TestPubSubMessages(object):
 
     def test_unicode_channel_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        channel = u('uni') + unichr(4456) + u('code')
+        channel = 'uni' + unichr(4456) + 'code'
         channels = {channel: self.message_handler}
         p.subscribe(**channels)
         assert r.publish(channel, 'test message') == 1
@@ -277,8 +277,8 @@ class TestPubSubMessages(object):
 
     def test_unicode_pattern_message_handler(self, r):
         p = r.pubsub(ignore_subscribe_messages=True)
-        pattern = u('uni') + unichr(4456) + u('*')
-        channel = u('uni') + unichr(4456) + u('code')
+        pattern = 'uni' + unichr(4456) + '*'
+        channel = 'uni' + unichr(4456) + 'code'
         p.psubscribe(**{pattern: self.message_handler})
         assert r.publish(channel, 'test message') == 1
         assert wait_for_message(p) is None
@@ -297,9 +297,9 @@ class TestPubSubMessages(object):
 class TestPubSubAutoDecoding(object):
     "These tests only validate that we get unicode values back"
 
-    channel = u('uni') + unichr(4456) + u('code')
-    pattern = u('uni') + unichr(4456) + u('*')
-    data = u('abc') + unichr(4458) + u('123')
+    channel = 'uni' + unichr(4456) + 'code'
+    pattern = 'uni' + unichr(4456) + '*'
+    data = 'abc' + unichr(4458) + '123'
 
     def make_message(self, type, channel, data, pattern=None):
         return {
@@ -317,7 +317,7 @@ class TestPubSubAutoDecoding(object):
 
     @pytest.fixture()
     def r(self, request):
-        return _redis_client(request=request, decode_responses=True)
+        return _get_client(redis_namespace.Redis, request=request, decode_responses=True)
 
     def test_channel_subscribe_unsubscribe(self, r):
         p = r.pubsub()
@@ -367,7 +367,7 @@ class TestPubSubAutoDecoding(object):
         # test that we reconnected to the correct channel
         p.connection.disconnect()
         assert wait_for_message(p) is None  # should reconnect
-        new_data = self.data + u('new data')
+        new_data = self.data + 'new data'
         r.publish(self.channel, new_data)
         assert wait_for_message(p) is None
         assert self.message == self.make_message('message', self.channel,
@@ -385,7 +385,7 @@ class TestPubSubAutoDecoding(object):
         # test that we reconnected to the correct pattern
         p.connection.disconnect()
         assert wait_for_message(p) is None  # should reconnect
-        new_data = self.data + u('new data')
+        new_data = self.data + 'new data'
         r.publish(self.channel, new_data)
         assert wait_for_message(p) is None
         assert self.message == self.make_message('pmessage', self.channel,
@@ -409,7 +409,7 @@ class TestPubSubPubSubSubcommands(object):
         p = r.pubsub(ignore_subscribe_messages=True)
         p.subscribe('foo', 'bar', 'baz', 'quux')
         channels = sorted(r.pubsub_channels())
-        assert channels == [b('bar'), b('baz'), b('foo'), b('quux')]
+        assert channels == [b'bar', b'baz', b'foo', b'quux']
 
     @skip_if_server_version_lt('2.8.0')
     def test_pubsub_numsub(self, r):
@@ -420,7 +420,7 @@ class TestPubSubPubSubSubcommands(object):
         p3 = r.pubsub(ignore_subscribe_messages=True)
         p3.subscribe('baz')
 
-        channels = [(b('foo'), 1), (b('bar'), 2), (b('baz'), 3)]
+        channels = [(b'foo', 1), (b'bar', 2), (b'baz', 3)]
         assert channels == r.pubsub_numsub('foo', 'bar', 'baz')
 
     @skip_if_server_version_lt('2.8.0')
@@ -428,3 +428,24 @@ class TestPubSubPubSubSubcommands(object):
         p = r.pubsub(ignore_subscribe_messages=True)
         p.psubscribe('*oo', '*ar', 'b*z')
         assert r.pubsub_numpat() == 3
+
+
+class TestPubSubPings(object):
+
+    @skip_if_server_version_lt('3.0.0')
+    def test_send_pubsub_ping(self, r):
+        p = r.pubsub(ignore_subscribe_messages=True)
+        p.subscribe('foo')
+        p.ping()
+        assert wait_for_message(p) == make_message(type='pong', channel=None,
+                                                   data='',
+                                                   pattern=None)
+
+    @skip_if_server_version_lt('3.0.0')
+    def test_send_pubsub_ping_message(self, r):
+        p = r.pubsub(ignore_subscribe_messages=True)
+        p.subscribe('foo')
+        p.ping(message='hello world')
+        assert wait_for_message(p) == make_message(type='pong', channel=None,
+                                                   data='hello world',
+                                                   pattern=None)

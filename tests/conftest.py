@@ -49,8 +49,17 @@ def ns():
     return NS
 
 
+@pytest.fixture()
+def bns():
+    return NS.encode('utf-8')
+
+
 def with_ns(k):
     return NS+k
+
+
+def with_bns(k):
+    return NS.encode('utf-8')+k
 
 
 @pytest.fixture()

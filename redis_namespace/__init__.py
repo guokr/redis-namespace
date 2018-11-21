@@ -9,25 +9,29 @@ if not redis_version.startswith('.'.join(current_version.split('.')[:-1])):
     raise Exception('Version mismatch! redis version: %s, redis-namespace version: %s' % (redis_version, current_version))
 
 import redis
-from redis.client import Token, BasePipeline as _BasePipeline, PubSub as _PubSub
+from redis.client import Token, Pipeline as _Pipeline, PubSub as _PubSub, EMPTY_RESPONSE
 from redis.connection import ConnectionPool
+from redis.exceptions import ResponseError
 from redis._compat import nativestr, basestring, bytes
 
 
 NAMESPACED_COMMANDS = {
     "append": ['first'],
     "bitcount": ['first'],
+    "bitfield": ['first'],
     "bitop": ['exclude_first'],
     "bitpos": ['first'],
     "blpop": ['exclude_last', 'first'],
     "brpop": ['exclude_last', 'first'],
     "brpoplpush": ['exclude_last'],
     # "debug": ['exclude_first'],
+    "bzpopmax": ['exclude_last', 'first'],
+    "bzpopmin": ['exclude_last', 'first'],
     "decr": ['first'],
     "decrby": ['first'],
     "del": ['all'],
     "dump": ['first'],
-    "exists": ['first'],
+    "exists": ['all'],
     "expire": ['first'],
     "expireat": ['first'],
     "eval": ['eval_style'],
@@ -78,6 +82,7 @@ NAMESPACED_COMMANDS = {
     "mapped_mget": ['all', 'all'],
     "mapped_mset": ['all'],
     "mapped_msetnx": ['all'],
+    "memory usage": ['first'],
     "mget": ['all'],
     "monitor": ['monitor'],
     "move": ['first'],
@@ -140,6 +145,8 @@ NAMESPACED_COMMANDS = {
     "zincrby": ['first'],
     "zinterstore": ['exclude_options'],
     "zlexcount": ['first'],
+    "zpopmax": ['first'],
+    "zpopmin": ['first'],
     "zrange": ['first'],
     "zrangebylex": ['first'],
     "zrangebyscore": ['first'],
@@ -311,14 +318,19 @@ class StrictRedis(redis.StrictRedis):
         return super(StrictRedis, self).execute_command(*args, **options)
 
     def parse_response(self, connection, command_name, **options):
-        response = connection.read_response()
+        try:
+            response = connection.read_response()
+        except ResponseError:
+            if EMPTY_RESPONSE in options:
+                return options[EMPTY_RESPONSE]
+            raise
         response = response_rm_namespace(self._namespace, command_name, response)
         if command_name in self.response_callbacks:
             return self.response_callbacks[command_name](response, **options)
         return response
 
     def pipeline(self, transaction=True, shard_hint=None):
-        return StrictPipeline(
+        return Pipeline(
             self.connection_pool,
             self.response_callbacks,
             transaction,
@@ -359,15 +371,7 @@ class StrictRedis(redis.StrictRedis):
             count, sort, store, store_dist)
 
 
-class Redis(redis.Redis, StrictRedis):
-
-    def pipeline(self, transaction=True, shard_hint=None):
-        return Pipeline(
-            self.connection_pool,
-            self.response_callbacks,
-            transaction,
-            shard_hint,
-            namespace=self._namespace)
+Redis = StrictRedis
 
 
 class PubSub(_PubSub):
@@ -386,27 +390,21 @@ class PubSub(_PubSub):
         if message_type == 'pmessage':
             response[1] = rm_namespace(self._namespace, response[1])  # pattern
             response[2] = rm_namespace(self._namespace, response[2])  # channel
+        elif message_type == 'pong':
+            pass
         else:
             response[1] = rm_namespace(self._namespace, response[1])  # channel
         return super(PubSub, self).handle_message(response, ignore_subscribe_messages)
 
 
-class BasePipeline(_BasePipeline):
+class Pipeline(_Pipeline, StrictRedis):
 
     def __init__(self, connection_pool, response_callbacks, transaction,
                  shard_hint, namespace=''):
-        super(BasePipeline, self).__init__(
+        super(Pipeline, self).__init__(
             connection_pool, response_callbacks, transaction, shard_hint)
         self._namespace = namespace
 
     def execute_command(self, *args, **kwargs):
         args = args_with_namespace(self._namespace, *args)
-        return super(BasePipeline, self).execute_command(*args, **kwargs)
-
-
-class StrictPipeline(BasePipeline, StrictRedis):
-    pass
-
-
-class Pipeline(BasePipeline, Redis):
-    pass
+        return super(Pipeline, self).execute_command(*args, **kwargs)
