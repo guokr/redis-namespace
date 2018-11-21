@@ -4,10 +4,10 @@ import time
 
 import redis_namespace
 from redis.exceptions import ConnectionError
-from redis._compat import basestring, u, unichr, b
+from redis._compat import basestring, u, unichr
 
 from .conftest import r as _redis_client
-from .conftest import skip_if_server_version_lt, NS
+from .conftest import NS
 
 
 def wait_for_message(pubsub, timeout=0.1, ignore_subscribe_messages=False):
@@ -143,7 +143,6 @@ class TestPubSubSubscribeUnsubscribe(object):
         assert wait_for_message(p) == make_message(unsub_type, keys[0], 0)
         # now we're no longer subscribed as no more messages can be delivered
         # to any channels we were listening to
-        wait_for_message(p)
         assert p.subscribed is False
 
         # subscribing again flips the flag back
@@ -285,14 +284,6 @@ class TestPubSubMessages(object):
         assert self.message == make_message('pmessage', channel,
                                             'test message', pattern=pattern)
 
-    def test_get_message_without_subscribe(self, r):
-        p = r.pubsub()
-        with pytest.raises(RuntimeError) as info:
-            p.get_message()
-        expect = ('connection not set: '
-                  'did you forget to call subscribe() or psubscribe()?')
-        assert expect in info.exconly()
-
 
 class TestPubSubAutoDecoding(object):
     "These tests only validate that we get unicode values back"
@@ -396,35 +387,7 @@ class TestPubSubAutoDecoding(object):
 class TestPubSubRedisDown(object):
 
     def test_channel_subscribe(self, r):
-        r = redis_namespace.Redis(host='localhost', port=6390, namespace=NS)
+        r = redis_namespace.Redis(host='localhost', port=6390)
         p = r.pubsub()
         with pytest.raises(ConnectionError):
             p.subscribe('foo')
-
-
-class TestPubSubPubSubSubcommands(object):
-
-    @skip_if_server_version_lt('2.8.0')
-    def test_pubsub_channels(self, r):
-        p = r.pubsub(ignore_subscribe_messages=True)
-        p.subscribe('foo', 'bar', 'baz', 'quux')
-        channels = sorted(r.pubsub_channels())
-        assert channels == [b('bar'), b('baz'), b('foo'), b('quux')]
-
-    @skip_if_server_version_lt('2.8.0')
-    def test_pubsub_numsub(self, r):
-        p1 = r.pubsub(ignore_subscribe_messages=True)
-        p1.subscribe('foo', 'bar', 'baz')
-        p2 = r.pubsub(ignore_subscribe_messages=True)
-        p2.subscribe('bar', 'baz')
-        p3 = r.pubsub(ignore_subscribe_messages=True)
-        p3.subscribe('baz')
-
-        channels = [(b('foo'), 1), (b('bar'), 2), (b('baz'), 3)]
-        assert channels == r.pubsub_numsub('foo', 'bar', 'baz')
-
-    @skip_if_server_version_lt('2.8.0')
-    def test_pubsub_numpat(self, r):
-        p = r.pubsub(ignore_subscribe_messages=True)
-        p.psubscribe('*oo', '*ar', 'b*z')
-        assert r.pubsub_numpat() == 3

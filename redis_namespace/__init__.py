@@ -277,6 +277,8 @@ def add_namespace(ns, key):
     elif isinstance(key, dict):
         return {add_namespace(ns, k): v for k, v in key.items()}
     elif isinstance(key, basestring):
+        if isinstance(key, str):
+            return '{}{}'.format(ns, key.decode('utf-8'))
         return '{}{}'.format(ns, key)
     elif isinstance(key, bytes):
         return '{}{}'.format(ns, nativestr(key))
